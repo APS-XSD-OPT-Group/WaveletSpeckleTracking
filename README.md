@@ -1,6 +1,6 @@
-# XSVT
+# WSVT
 
-XSVT is a package to solve speckle vector tracking problem, where the discrete wavelet transform is implemented to accelerate the process and increase noise robustness.  
+WSVT (Wavelet-transform-based speckle vector tracking) is a package to solve speckle vector tracking problem, where the discrete wavelet transform is implemented to accelerate the process and increase noise robustness.  
 
 To install:\
             `python setup.py install`
