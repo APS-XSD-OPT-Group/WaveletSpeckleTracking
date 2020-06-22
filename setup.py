@@ -93,7 +93,6 @@ INSTALL_REQUIRES = (
     'json',
     'pywt',
     'numba',
-    'PIL',
     'scipy',
 )
 
