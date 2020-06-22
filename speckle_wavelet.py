@@ -87,10 +87,7 @@ def load_images(Folder_path, filename_format='*.tif'):
     return np.array(img)
 
 
-def displace_wavelet(y_list,
-                     img_wa_stack,
-                     ref_wa_stack,
-                     sub_pixel,
+def displace_wavelet(y_list, img_wa_stack, ref_wa_stack, sub_pixel,
                      cal_half_window):
     '''
         calculate the coefficient of each pixel
@@ -112,9 +109,11 @@ def displace_wavelet(y_list,
                                        xx:xx + window_size, :]
 
             Corr_img = dist_numba(img_wa_line, ref_wa_data)
- 
-            disp_y[yy, xx], disp_x[yy, xx] = find_disp(
-                Corr_img, XX, YY, sub_resolution=True)
+
+            disp_y[yy, xx], disp_x[yy, xx] = find_disp(Corr_img,
+                                                       XX,
+                                                       YY,
+                                                       sub_resolution=True)
 
     return disp_y, disp_x, y_list
 
@@ -126,18 +125,14 @@ if __name__ == "__main__":
         Folder_img = 'H:/data/Jan2020_speckle/20200202/scan_speckle_exp_d500mm/sandpaper_5um/linear_rand10p_3um_Exp3s/sample_in/'
         Folder_result = 'H:/data/Jan2020_speckle/20200202/scan_speckle_exp_d500mm/sandpaper_5um/linear_rand10p_3um_Exp3s/wavelet_result_test/'
         # [image_size, cal_half_window, ues_parallel, n_group, n_cores, energy, pixel_size, distance, wavelet_cut_level]
-        parameter_wavelet = [
-            1500, 20, 1, 4, 4, 14e3, 0.65e-6, 500e-3, 2
-        ]
+        parameter_wavelet = [1500, 20, 1, 4, 4, 14e3, 0.65e-6, 500e-3, 2]
 
     elif len(sys.argv) == 4:
         Folder_img = sys.argv[1]
         Folder_ref = sys.argv[2]
         Folder_result = sys.argv[3]
         # [image_size, cal_half_window, ues_parallel, n_group, n_cores, energy, pixel_size, distance, wavelet_cut_level]
-        parameter_wavelet = [
-            1700, 40, 1, 4, 4, 14e3, 0.65e-6, 500e-3, 2
-        ]
+        parameter_wavelet = [1700, 40, 1, 4, 4, 14e3, 0.65e-6, 500e-3, 2]
     elif len(sys.argv) == 14:
         Folder_img = sys.argv[1]
         Folder_ref = sys.argv[2]
@@ -217,16 +212,18 @@ if __name__ == "__main__":
                     np.ndarray.std(img_data, axis=0))
 
         img_wa, level_name = Wavelet_transform(img_data,
-                                           wavelet_method,
-                                           w_level=wavelet_level,
-                                           return_level=coefs_level)
+                                               wavelet_method,
+                                               w_level=wavelet_level,
+                                               return_level=coefs_level)
         ref_wa, level_nam = Wavelet_transform(ref_data,
-                                           wavelet_method,
-                                           w_level=wavelet_level,
-                                           return_level=coefs_level)
+                                              wavelet_method,
+                                              w_level=wavelet_level,
+                                              return_level=coefs_level)
 
-        prColor('vector length: {}\nUse wavelet coef: {}'.format(ref_wa.shape[2], level_name), 'green')
-        
+        prColor(
+            'vector length: {}\nUse wavelet coef: {}'.format(
+                ref_wa.shape[2], level_name), 'green')
+
         del img_data
         del ref_data
         end_time = time.time()
@@ -255,7 +252,7 @@ if __name__ == "__main__":
                 # start the jobs
                 futures.append(
                     executor.submit(displace_wavelet, y_list, img_wa_stack,
-                                    ref_wa_stack, pixel_sample, 
+                                    ref_wa_stack, pixel_sample,
                                     cal_half_window))
 
             for future in concurrent.futures.as_completed(futures):
@@ -291,21 +288,23 @@ if __name__ == "__main__":
 
     else:
         start_time = time.time()
-        
+
         ref_data = ((ref_data - np.ndarray.mean(ref_data, axis=0)) /
                     np.ndarray.std(ref_data, axis=0))
         img_data = ((img_data - np.ndarray.mean(img_data, axis=0)) /
                     np.ndarray.std(img_data, axis=0))
 
         img_wa, level_name = Wavelet_transform(img_data,
-                                           wavelet_method,
-                                           w_level=wavelet_level,
-                                           return_level=coefs_level)
+                                               wavelet_method,
+                                               w_level=wavelet_level,
+                                               return_level=coefs_level)
         ref_wa, level_name = Wavelet_transform(ref_data,
-                                           wavelet_method,
-                                           w_level=wavelet_level,
-                                           return_level=coefs_level)
-        prColor('vector length: {}\nUse wavelet coef: {}'.format(ref_wa.shape[2], level_name), 'green')
+                                               wavelet_method,
+                                               w_level=wavelet_level,
+                                               return_level=coefs_level)
+        prColor(
+            'vector length: {}\nUse wavelet coef: {}'.format(
+                ref_wa.shape[2], level_name), 'green')
         # delete the unused variables to save memory
         del img_data
         del ref_data
@@ -336,9 +335,10 @@ if __name__ == "__main__":
             ref_wa_stack = ref_wa_pad[y_list[0]:y_list[-1] +
                                       2 * cal_half_window + 1, :, :]
 
-            disp_y, disp_x, y_pos = displace_wavelet(
-                y_list, img_wa_stack, ref_wa_stack,
-                pixel_sample, cal_half_window)
+            disp_y, disp_x, y_pos = displace_wavelet(y_list, img_wa_stack,
+                                                     ref_wa_stack,
+                                                     pixel_sample,
+                                                     cal_half_window)
             displace_y[y_pos, :] = disp_y
             displace_x[y_pos, :] = disp_x
             print(kk / len(chunks_idx_y))
@@ -366,31 +366,46 @@ if __name__ == "__main__":
         os.makedirs(Folder_result)
 
     plt.figure()
-    plt.imshow(displace[0], cmap=cm.get_cmap('RdYlGn'), interpolation='bilinear', aspect='equal')
+    plt.imshow(displace[0],
+               cmap=cm.get_cmap('RdYlGn'),
+               interpolation='bilinear',
+               aspect='equal')
     cbar = plt.colorbar()
     cbar.set_label('[pixels]', rotation=90)
     plt.savefig(os.path.join(Folder_result, 'displace_x_colorbar.png'))
 
     plt.figure()
-    plt.imshow(displace[1], cmap=cm.get_cmap('RdYlGn'), interpolation='bilinear', aspect='equal')
+    plt.imshow(displace[1],
+               cmap=cm.get_cmap('RdYlGn'),
+               interpolation='bilinear',
+               aspect='equal')
     cbar = plt.colorbar()
     cbar.set_label('[pixels]', rotation=90)
     plt.savefig(os.path.join(Folder_result, 'displace_y_colorbar.png'))
 
     plt.figure()
-    plt.imshow(DPC_x*1e6, cmap=cm.get_cmap('RdYlGn'), interpolation='bilinear', aspect='equal')
+    plt.imshow(DPC_x * 1e6,
+               cmap=cm.get_cmap('RdYlGn'),
+               interpolation='bilinear',
+               aspect='equal')
     cbar = plt.colorbar()
     cbar.set_label('[$\mu rad$]', rotation=90)
     plt.savefig(os.path.join(Folder_result, 'dpc_x_colorbar.png'))
 
     plt.figure()
-    plt.imshow(DPC_y*1e6, cmap=cm.get_cmap('RdYlGn'), interpolation='bilinear', aspect='equal')
+    plt.imshow(DPC_y * 1e6,
+               cmap=cm.get_cmap('RdYlGn'),
+               interpolation='bilinear',
+               aspect='equal')
     cbar = plt.colorbar()
     cbar.set_label('[$\mu rad$]', rotation=90)
     plt.savefig(os.path.join(Folder_result, 'dpc_y_colorbar.png'))
 
     plt.figure()
-    plt.imshow(phase, cmap=cm.get_cmap('RdYlGn'), interpolation='bilinear', aspect='equal')
+    plt.imshow(phase,
+               cmap=cm.get_cmap('RdYlGn'),
+               interpolation='bilinear',
+               aspect='equal')
     cbar = plt.colorbar()
     cbar.set_label('[rad]', rotation=90)
     plt.savefig(os.path.join(Folder_result, 'phase_colorbar.png'))
@@ -407,7 +422,9 @@ if __name__ == "__main__":
     plt.savefig(os.path.join(Folder_result, 'Phase_3d.png'))
 
     # save the calculation results
-    result_filename = 'WaveletSpeckle_' + str(M_image) + 'px_' + 'WaveletLevel_'+ str(wavelet_level) + '_CutLevel_' +str(wavelet_level_cut)
+    result_filename = 'WaveletSpeckle_' + str(
+        M_image) + 'px_' + 'WaveletLevel_' + str(
+            wavelet_level) + '_CutLevel_' + str(wavelet_level_cut)
     write_h5(
         Folder_result, result_filename, {
             'displace_x': displace[1],

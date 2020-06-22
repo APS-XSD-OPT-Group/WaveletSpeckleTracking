@@ -66,7 +66,8 @@ MAINTAINER = 'XSD-OPT Group @ APS-ANL'
 MAINTAINER_EMAIL = 'zqiao@anl.gov'
 LICENSE = 'BSD-3'
 
-KEYWORDS = ['dictionary',
+KEYWORDS = [
+    'dictionary',
     'speckle tracking',
     'wavefront'
     'synchrotron'
@@ -96,14 +97,11 @@ INSTALL_REQUIRES = (
     'scipy',
 )
 
-SETUP_REQUIRES = (
-    'setuptools',
-)
+SETUP_REQUIRES = ('setuptools', )
 
 PACKAGES = find_packages(exclude=('*.tests', '*.tests.*', 'tests.*', 'tests'))
 
-PACKAGE_DATA = {
-}
+PACKAGE_DATA = {}
 
 
 def setup_package():
@@ -129,6 +127,7 @@ def setup_package():
         install_requires=INSTALL_REQUIRES,
         setup_requires=SETUP_REQUIRES,
     )
+
 
 if __name__ == '__main__':
     setup_package()

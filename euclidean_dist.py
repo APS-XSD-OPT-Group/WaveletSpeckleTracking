@@ -57,9 +57,8 @@ def dist_numba(v1, arry2):
         for jj in range(arry2.shape[1]):
             s = 0
             for kk in range(arry2.shape[2]):
-                s += (v1[kk]-arry2[ii, jj, kk])**2
+                s += (v1[kk] - arry2[ii, jj, kk])**2
 
-            c[ii, jj] = - s
-            
+            c[ii, jj] = -s
+
     return c
-
