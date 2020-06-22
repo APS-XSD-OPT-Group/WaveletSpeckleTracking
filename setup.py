@@ -50,18 +50,18 @@ try:
 except AttributeError:
     from setuptools import find_packages, setup
 
-NAME = 'XSVT'
+NAME = 'WSVT'
 
 VERSION = '0.0.1'
 ISRELEASED = False
 
-DESCRIPTION = 'XSVT code'
+DESCRIPTION = 'WSVT code'
 README_FILE = os.path.join(os.path.dirname(__file__), 'README.md')
 LONG_DESCRIPTION = open(README_FILE).read()
 AUTHOR = 'Zhi Qiao, Xianbo Shi'
 AUTHOR_EMAIL = 'zqiao@anl.gov'
-URL = 'https://github.com/APS-XSD-OPT-Group/XSVT'
-DOWNLOAD_URL = 'https://github.com/APS-XSD-OPT-Group/XSVT'
+URL = 'https://github.com/APS-XSD-OPT-Group/WSVT'
+DOWNLOAD_URL = 'https://github.com/APS-XSD-OPT-Group/WSVT'
 MAINTAINER = 'XSD-OPT Group @ APS-ANL'
 MAINTAINER_EMAIL = 'zqiao@anl.gov'
 LICENSE = 'BSD-3'
