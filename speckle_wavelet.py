@@ -121,18 +121,18 @@ def displace_wavelet(y_list, img_wa_stack, ref_wa_stack, sub_pixel,
 if __name__ == "__main__":
     if len(sys.argv) == 1:
 
-        Folder_ref = 'H:/data/Jan2020_speckle/20200202/scan_speckle_exp_d500mm/sandpaper_5um/linear_rand10p_3um_Exp3s/refs/'
-        Folder_img = 'H:/data/Jan2020_speckle/20200202/scan_speckle_exp_d500mm/sandpaper_5um/linear_rand10p_3um_Exp3s/sample_in/'
-        Folder_result = 'H:/data/Jan2020_speckle/20200202/scan_speckle_exp_d500mm/sandpaper_5um/linear_rand10p_3um_Exp3s/wavelet_result_test/'
+        Folder_ref = ''
+        Folder_img = ''
+        Folder_result = ''
         # [image_size, cal_half_window, ues_parallel, n_group, n_cores, energy, pixel_size, distance, wavelet_cut_level]
-        parameter_wavelet = [1500, 20, 1, 4, 4, 14e3, 0.65e-6, 500e-3, 2]
+        parameter_wavelet = [1500, 10, 1, 4, 4, 14e3, 0.65e-6, 500e-3, 1]
 
     elif len(sys.argv) == 4:
         Folder_img = sys.argv[1]
         Folder_ref = sys.argv[2]
         Folder_result = sys.argv[3]
         # [image_size, cal_half_window, ues_parallel, n_group, n_cores, energy, pixel_size, distance, wavelet_cut_level]
-        parameter_wavelet = [1700, 40, 1, 4, 4, 14e3, 0.65e-6, 500e-3, 2]
+        parameter_wavelet = [1500, 10, 1, 4, 4, 14e3, 0.65e-6, 500e-3, 1]
     elif len(sys.argv) == 14:
         Folder_img = sys.argv[1]
         Folder_ref = sys.argv[2]

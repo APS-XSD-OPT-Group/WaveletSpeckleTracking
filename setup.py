@@ -90,10 +90,11 @@ INSTALL_REQUIRES = (
     'numpy',
     'scipy',
     'h5py',
-    'json',
-    'pywt',
+    'pywavelets',
     'numba',
+    'pillow',
     'scipy',
+    'matplotlib'
 )
 
 SETUP_REQUIRES = ('setuptools', )
