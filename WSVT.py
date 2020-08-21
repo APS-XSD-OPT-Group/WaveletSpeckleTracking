@@ -51,8 +51,8 @@ import time
 from PIL import Image
 import glob
 import scipy.constants as sc
-from func import prColor, frankotchellappa, image_roi, Wavelet_transform, write_h5, write_json, filter_erosion, find_disp
-from euclidean_dist import dist_numba, dist_numpy
+from func import prColor, frankotchellappa, image_roi, Wavelet_transform, write_h5, write_json, find_disp
+from euclidean_dist import dist_numba
 import matplotlib
 # matplotlib.use('Agg')
 from matplotlib import pyplot as plt
@@ -101,7 +101,6 @@ def image_preprocess(image, have_dark, dark_img, have_flat, flat_img):
         image = (image / flat_img) * np.amax(image)
 
     return image
-
 
 class WSVT:
     def __init__(self,
@@ -171,7 +170,6 @@ class WSVT:
         img_data = ((self.img_data - np.ndarray.mean(self.img_data, axis=0)) /
                     np.ndarray.std(self.img_data, axis=0))
 
-        # print(ref_data.shape)
         ref_pyramid = []
         img_pyramid = []
         prColor(
@@ -276,12 +274,9 @@ class WSVT:
                     int(displace_pyramid[1][yy, xx]) + window_size, :]
 
                 Corr_img = dist_numba(img_wa_line, ref_wa_data)
-                '''
-                    use gradient to find the peak
-                '''
+
                 disp_y[yy, xx], disp_x[yy, xx], SN_ratio, max_corr = find_disp(
                     Corr_img, XX, YY, sub_resolution=True)
-                # disp_y[yy, xx], disp_x[yy, xx] = find_disp_2nd(Corr_img, XX, YY)
 
         disp_add_y = displace_pyramid[0] + disp_y
         disp_add_x = displace_pyramid[1] + disp_x
@@ -358,7 +353,7 @@ class WSVT:
                 else:
                     pyramid_seaching_window = searching_window_pyramid_list[
                         p_level]
-                    # extend displace_pyramid with upsampling of 2 and also displace value is 2 times larger
+
                     m, n, c = img_pyramid[p_level].shape
                     displace_pyramid = [
                         np.round(self.resampling_spline(img, (m, n)) * 2)
@@ -379,12 +374,12 @@ class WSVT:
                     n_pad = int(
                         np.ceil(self.cal_half_window / 2**p_level) *
                         2**p_level)
-                # print(displace_pyramid[0].shape, np.amax(displace_pyramid[0]), np.amin(displace_pyramid[0]))
+
                 prColor(
                     'pyramid level: {}\nImage size: {}\nsearching window:{}'.
                     format(p_level, ref_pyramid[p_level].shape,
                            pyramid_seaching_window), 'cyan')
-                # split the y axis into small groups, all splitted in vertical direction
+
                 y_axis = np.arange(ref_pyramid[p_level].shape[0])
                 chunks_idx_y = np.array_split(y_axis, n_tasks)
 
@@ -447,8 +442,6 @@ class WSVT:
 
                 displace_y = np.zeros((dim[0], dim[1]))
                 displace_x = np.zeros((dim[0], dim[1]))
-                # x_axis = np.zeros(XX.shape)
-                # y_axis = np.zeros(XX.shape)
 
                 for y, disp_x, disp_y in zip(y_list, disp_x_list, disp_y_list):
                     displace_x[y, :] = disp_x
@@ -472,18 +465,10 @@ class WSVT:
             '\r' + 'Processing time: {:0.3f} s'.format(end_time - start_time),
             'light_purple')
 
-        # remove the padding boundary of the displacement
         displace[0] = -displace[0][self.cal_half_window:-self.cal_half_window,
                                    self.cal_half_window:-self.cal_half_window]
         displace[1] = -displace[1][self.cal_half_window:-self.cal_half_window,
                                    self.cal_half_window:-self.cal_half_window]
-        # '''
-        #     do the filter to smooth the image
-        # '''
-        # displace[0] = filter_erosion(
-        #     displace[0], abs(2.0 * np.mean(np.diff(displace[0], 1, 0))))
-        # displace[1] = filter_erosion(
-        #     displace[1], abs(2.0 * np.mean(np.diff(displace[1], 1, 0))))
 
         DPC_y = (displace[0] - np.mean(displace[0])) * p_x / z
         DPC_x = (displace[1] - np.mean(displace[1])) * p_x / z
@@ -560,18 +545,10 @@ class WSVT:
 if __name__ == "__main__":
     if len(sys.argv) == 1:
 
-        # Folder_ref = 'H:/data/Jan2020_speckle/20200202/single_shot_18XCRL200um/d310mm/linear_sandpaper/refs/'
-        # Folder_img = 'H:/data/Jan2020_speckle/20200202/single_shot_18XCRL200um/d310mm/linear_sandpaper/sample_in/'
-        # Folder_result = 'H:/data/Jan2020_speckle/20200202/single_shot_18XCRL200um/d310mm/linear_sandpaper/wavelet_pyramid/'
-
         Folder_ref = 'D:/data/Jan2020_speckle/20200202/scan_speckle_exp_d500mm/sandpaper_5um/log_scan_Exp3s/refs/'
         Folder_img = 'D:/data/Jan2020_speckle/20200202/scan_speckle_exp_d500mm/sandpaper_5um/log_scan_Exp3s/sample_in/'
         Folder_result = 'D:/data/Jan2020_speckle/20200202/scan_speckle_exp_d500mm/sandpaper_5um/log_scan_Exp3s/WSVT_test/'
 
-        # Folder_ref = 'C:/Users/qiaoz/Documents/X_ray_wavefront/test_data/linear_rand10p_3um_Exp5s/refs/'
-        # Folder_img = 'C:/Users/qiaoz/Documents/X_ray_wavefront/test_data/linear_rand10p_3um_Exp5s/sample_in/'
-        # Folder_result = 'C:/Users/qiaoz/Documents/X_ray_wavefront/test_data/linear_rand10p_3um_Exp5s/wavelet_pyramid/'
-        # [image_size, cal_half_window, n_group, n_cores, energy, pixel_size, distance, wavelet_ct, pyramid level, n_iteration]
         parameter_wavelet = [1500, 20, 4, 4, 14e3, 0.65e-6, 500e-3, 1, 2, 1]
 
     elif len(sys.argv) == 4:
@@ -587,7 +564,6 @@ if __name__ == "__main__":
         parameter_wavelet = sys.argv[4:]
     else:
         prColor('Wrong parameters! should be: sample, ref, result', 'red')
-    # print(sys.argv)
     prColor('folder: {}'.format(Folder_result), 'green')
     # roi of the images
     M_image = int(parameter_wavelet[0])
@@ -674,7 +650,6 @@ if __name__ == "__main__":
     cbar = plt.colorbar()
     cbar.set_label('[rad]', rotation=90)
     plt.savefig(os.path.join(Folder_result, 'phase_colorbar.png'))
-    # plt.show()
     fig = plt.figure()
     ax1 = fig.add_subplot(111, projection='3d')
     XX, YY = np.meshgrid(

@@ -48,14 +48,11 @@ import pywt
 import os
 import sys
 import time
-# import tifffile as tiff
 from PIL import Image
 import glob
 import scipy.constants as sc
-from func import prColor, frankotchellappa, image_roi, Wavelet_transform, write_h5, write_json, filter_erosion, find_disp
-from euclidean_dist import dist_numba, dist_numpy
-# import dist_cython
-# from slop_tracking_solver import slop_tracking
+from func import prColor, frankotchellappa, image_roi, Wavelet_transform, write_h5, write_json, find_disp
+from euclidean_dist import dist_numba
 import matplotlib
 # matplotlib.use('Agg')
 from matplotlib import pyplot as plt
@@ -66,7 +63,6 @@ import concurrent.futures
 import scipy.interpolate as sfit
 import copy
 import cv2
-# from noise_image import add_noise
 
 
 def load_image(file_path):
@@ -99,50 +95,6 @@ def image_preprocess(image, have_dark, dark_img, have_flat, flat_img):
         image = (image / flat_img) * np.amax(image)
 
     return image
-
-
-def slope_tracking(img, ref, n_window=15):
-    '''
-        use opencv optical flow function to calculate the moving of the pixels.
-        input:
-            img:            the sample image
-            ref:            the reference image
-        output:
-            displace:       the displacement of the pixels in the images
-                            [dips_H, disp_V]
-    '''
-    # the pyramid scale, make the undersampling image
-    pyramid_scal = 0.5
-    # the pyramid levels
-    levels = 2
-    # window size of the displacement calculation
-    winsize = n_window
-    # iteration for the calculation
-    n_iter = 10
-    # neighborhood pixel size to calculate the polynomial expansion, which makes the results smooth but blurred
-    n_poly = 3
-    # standard deviation of the Gaussian that is used to smooth derivatives used as a basis for
-    # the polynomial expansion; for poly_n=5, you can set poly_sigma=1.1, for poly_n=7, a good value would be poly_sigma=1.5.
-    sigma_poly = 1.2
-    '''
-        operation flags that can be a combination of the following:
-
-        OPTFLOW_USE_INITIAL_FLOW uses the input flow as an initial flow approximation.
-        OPTFLOW_FARNEBACK_GAUSSIAN uses the Gaussian \texttt{winsize}\times\texttt{winsize} filter instead of 
-        a box filter of the same size for optical flow estimation; usually, this option gives z more accurate 
-        flow than with a box filter, at the cost of lower speed; normally, winsize for a Gaussian window 
-        should be set to a larger value to achieve the same level of robustness.
-    '''
-    flags = 1
-
-    flow = cv2.calcOpticalFlowFarneback(ref, img, None, pyramid_scal, levels,
-                                        winsize, n_iter, n_poly, sigma_poly,
-                                        flags)
-
-    displace = np.array([flow[..., 1], flow[..., 0]])
-
-    return displace
-
 
 class WXST:
     def __init__(self,
@@ -341,25 +293,12 @@ class WXST:
                     n_pad + xx + int(displace_pyramid[1][yy, xx]):n_pad + xx +
                     int(displace_pyramid[1][yy, xx]) + window_size, :]
 
-                # get the correlation matrix
-                # use different calculation method, maybe faster
-                # Corr_img = np.tensordot(-img_wa_line, ref_wa_data, axes = ([0],[0]))
-                '''
-                    euclidean distance
-                '''
-
-                # Corr_img = np.negative(np.sum((img_wa_line-ref_wa_data)**2, axis=2))
                 Corr_img = dist_numba(img_wa_line, ref_wa_data)
-                # Corr_img = dist_cython.dist_cal(img_wa_line, ref_wa_data)
-                # Corr_img = dist_numpy(img_wa_line, ref_wa_data)
-
-                # Corr_img = (Corr_img - np.amin(Corr_img)) / (np.amax(Corr_img) - np.amin(Corr_img))
                 '''
                     use gradient to find the peak
                 '''
                 disp_y[yy, xx], disp_x[yy, xx], SN_ratio, max_corr = find_disp(
                     Corr_img, XX, YY, sub_resolution=True)
-                # disp_y[yy, xx], disp_x[yy, xx] = find_disp_2nd(Corr_img, XX, YY)
 
         disp_add_y = displace_pyramid[0] + disp_y
         disp_add_x = displace_pyramid[1] + disp_x
@@ -430,13 +369,12 @@ class WXST:
                     m, n, c = img_pyramid[p_level].shape
                     displace_pyramid = [np.round(img) for img in displace]
 
-                    # n_pad = int(np.ceil(cal_half_window / 2**p_level) * 2**(pyramid_level-p_level))
                     n_pad = int(np.ceil(self.cal_half_window / 2**p_level))
 
                 else:
                     pyramid_seaching_window = searching_window_pyramid_list[
                         p_level]
-                    # extend displace_pyramid with upsampling of 2 and also displace value is 2 times larger
+
                     m, n, c = img_pyramid[p_level].shape
                     displace_pyramid = [
                         np.round(self.resampling_spline(img * 2, (m, n)))
@@ -454,14 +392,13 @@ class WXST:
                             -self.cal_half_window / 2**p_level)
                     ]
 
-                    # n_pad = int(np.ceil(cal_half_window / 2**p_level) * 2**(pyramid_level-p_level))
                     n_pad = int(np.ceil(self.cal_half_window / 2**p_level))
-                # print(displace_pyramid[0].shape, np.amax(displace_pyramid[0]), np.amin(displace_pyramid[0]))
+
                 prColor(
                     'pyramid level: {}\nImage size: {}\nsearching window:{}'.
                     format(p_level, ref_pyramid[p_level].shape,
                            pyramid_seaching_window), 'cyan')
-                # split the y axis into small groups, all splitted in vertical direction
+
                 y_axis = np.arange(ref_pyramid[p_level].shape[0])
                 chunks_idx_y = np.array_split(y_axis, n_tasks)
 
@@ -524,8 +461,6 @@ class WXST:
 
                 displace_y = np.zeros((dim[0], dim[1]))
                 displace_x = np.zeros((dim[0], dim[1]))
-                # x_axis = np.zeros(XX.shape)
-                # y_axis = np.zeros(XX.shape)
 
                 for y, disp_x, disp_y in zip(y_list, disp_x_list, disp_y_list):
                     displace_x[y, :] = disp_x
@@ -549,20 +484,11 @@ class WXST:
             '\r' + 'Processing time: {:0.3f} s'.format(end_time - start_time),
             'light_purple')
 
-        # remove the padding boundary of the displacement
         displace[0] = -displace[0][self.cal_half_window:-self.cal_half_window,
                                    self.cal_half_window:-self.cal_half_window]
         displace[1] = -displace[1][self.cal_half_window:-self.cal_half_window,
                                    self.cal_half_window:-self.cal_half_window]
-        # '''
-        #     do the filter to smooth the image
-        # '''
-        # displace[0] = filter_erosion(
-        #     displace[0], abs(2.0 * np.mean(np.diff(displace[0], 1, 0))))
-        # displace[1] = filter_erosion(
-        #     displace[1], abs(2.0 * np.mean(np.diff(displace[1], 1, 0))))
 
-        # print(displace[0].shape)
         DPC_y = (displace[0] - np.mean(displace[0])) * p_x / z
         DPC_x = (displace[1] - np.mean(displace[1])) * p_x / z
 
@@ -635,14 +561,9 @@ class WXST:
 if __name__ == "__main__":
     if len(sys.argv) == 1:
 
-        # Folder_ref = 'H:/data/Jan2020_speckle/20200202/single_shot_18XCRL200um/d310mm/linear_sandpaper/refs/'
-        # Folder_img = 'H:/data/Jan2020_speckle/20200202/single_shot_18XCRL200um/d310mm/linear_sandpaper/sample_in/'
-        # Folder_result = 'H:/data/Jan2020_speckle/20200202/single_shot_18XCRL200um/d310mm/linear_sandpaper/wavelet_pyramid/'
-
         Folder_path = 'D:/data/Jan2020_speckle/20200202/single_shot/d500mm/sandpaper_ExpTime5s'
         File_ref = os.path.join(Folder_path, 'ref_001.tif')
         File_img = os.path.join(Folder_path, 'sample_001.tif')
-        # File_flat = os.path.join(Folder_path, 'flat_5000ms_004.tif')
 
         Folder_result = os.path.join(Folder_path, 'WXST_test')
         # [image_size, template_window, cal_half_window, n_group, n_cores, energy, pixel_size, distance, use_wavelet, wavelet_ct, pyramid level, n_iteration]
@@ -721,11 +642,6 @@ if __name__ == "__main__":
                        n_iter=n_iter,
                        use_wavelet=use_wavelet)
 
-    # # get initial estimation from the cv2 flow tracking
-    # displace_estimate = slope_tracking(ref_data,
-    #                                    img_data,
-    #                                    N_window=cal_half_window)
-
     if not os.path.exists(Folder_result):
         os.makedirs(Folder_result)
     sample_transmission = img_data / ref_data
@@ -739,9 +655,6 @@ if __name__ == "__main__":
     DPC_y = WXST_solver.DPC[0]
     phase = WXST_solver.phase
     result_filename = WXST_solver.result_filename
-
-    # use slop_tracking to find the wavefront for one image
-    # phase, displace = slop_tracking(img_data[0], ref_data[0], p_x, z)
 
     plt.imsave(os.path.join(Folder_result, 'displace_x.png'), displace[1])
     plt.imsave(os.path.join(Folder_result, 'displace_y.png'), displace[0])
@@ -764,7 +677,7 @@ if __name__ == "__main__":
     cbar = plt.colorbar()
     cbar.set_label('[rad]', rotation=90)
     plt.savefig(os.path.join(Folder_result, 'phase_colorbar.png'))
-    # plt.show()
+
     fig = plt.figure()
     ax1 = fig.add_subplot(111, projection='3d')
     XX, YY = np.meshgrid(
