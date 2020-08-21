@@ -1,11 +1,48 @@
-'''
-    use image wrapping to further reduce the calculation time.
-    2D DWT is used to get the multi-resolution images.
-'''
-'''
-    use speckle step scanning data to calculate the pixel movement.
-    The data is a sequence of images, and every two image the movement can be calculated.
-'''
+# #########################################################################
+# Copyright (c) 2020, UChicago Argonne, LLC. All rights reserved.         #
+#                                                                         #
+# Copyright 2020. UChicago Argonne, LLC. This software was produced       #
+# under U.S. Government contract DE-AC02-06CH11357 for Argonne National   #
+# Laboratory (ANL), which is operated by UChicago Argonne, LLC for the    #
+# U.S. Department of Energy. The U.S. Government has rights to use,       #
+# reproduce, and distribute this software.  NEITHER THE GOVERNMENT NOR    #
+# UChicago Argonne, LLC MAKES ANY WARRANTY, EXPRESS OR IMPLIED, OR        #
+# ASSUMES ANY LIABILITY FOR THE USE OF THIS SOFTWARE.  If software is     #
+# modified to produce derivative works, such modified software should     #
+# be clearly marked, so as not to confuse it with the version available   #
+# from ANL.                                                               #
+#                                                                         #
+# Additionally, redistribution and use in source and binary forms, with   #
+# or without modification, are permitted provided that the following      #
+# conditions are met:                                                     #
+#                                                                         #
+#     * Redistributions of source code must retain the above copyright    #
+#       notice, this list of conditions and the following disclaimer.     #
+#                                                                         #
+#     * Redistributions in binary form must reproduce the above copyright #
+#       notice, this list of conditions and the following disclaimer in   #
+#       the documentation and/or other materials provided with the        #
+#       distribution.                                                     #
+#                                                                         #
+#     * Neither the name of UChicago Argonne, LLC, Argonne National       #
+#       Laboratory, ANL, the U.S. Government, nor the names of its        #
+#       contributors may be used to endorse or promote products derived   #
+#       from this software without specific prior written permission.     #
+#                                                                         #
+# THIS SOFTWARE IS PROVIDED BY UChicago Argonne, LLC AND CONTRIBUTORS     #
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT       #
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS       #
+# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL UChicago     #
+# Argonne, LLC OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,        #
+# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,    #
+# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;        #
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER        #
+# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT      #
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN       #
+# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE         #
+# POSSIBILITY OF SUCH DAMAGE.                                             #
+# #########################################################################
+
 import numpy as np
 import pywt
 import os
@@ -15,7 +52,7 @@ import time
 from PIL import Image
 import glob
 import scipy.constants as sc
-from func import prColor, frankotchellappa, image_roi, Wavelet_transform, write_h5, write_json, filter_erosion, find_disp, find_disp_2nd
+from func import prColor, frankotchellappa, image_roi, Wavelet_transform, write_h5, write_json, filter_erosion, find_disp
 from euclidean_dist import dist_numba, dist_numpy
 # import dist_cython
 # from slop_tracking_solver import slop_tracking
@@ -109,20 +146,21 @@ def slope_tracking(img, ref, n_window=15):
 
 class WXST:
     def __init__(self,
-                img,
-                ref,
-                M_image=512,
-                N_s=5,
-                cal_half_window=20,
-                N_s_extend=4,
-                n_cores=4,
-                n_group=4,
-                energy=14e3,
-                p_x=0.65e-6,
-                z=500e-3,
-                wavelet_level_cut=2,
-                pyramid_level=2,
-                n_iter=1, use_estimate=False, use_wavelet=True):
+                 img,
+                 ref,
+                 M_image=512,
+                 N_s=5,
+                 cal_half_window=20,
+                 N_s_extend=4,
+                 n_cores=4,
+                 n_group=4,
+                 energy=14e3,
+                 p_x=0.65e-6,
+                 z=500e-3,
+                 wavelet_level_cut=2,
+                 pyramid_level=2,
+                 n_iter=1,
+                 use_wavelet=True):
         self.img_data = img
         self.ref_data = ref
         # roi of the images
@@ -152,19 +190,11 @@ class WXST:
         self.pyramid_level = pyramid_level
         # iterations for the calculation
         self.n_iter = n_iter
-        # if use the estimated displace as initial guess
-        self.use_estimate = use_estimate
         # if use wavelet transform or not
         self.use_wavelet = use_wavelet
 
-        if self.use_estimate:
-            # get initial estimation from the cv2 flow tracking
-            displace_estimate = slope_tracking(self.ref_data, self.img_data, n_window=self.cal_half_window)
-            self.displace_estimate = [displace_estimate[0], displace_estimate[1]]
-        else:
-            m, n= self.img_data.shape
-            self.displace_estimate = [np.zeros((m, n)), np.zeros((m, n))]
-        
+        m, n = self.img_data.shape
+        self.displace_estimate = [np.zeros((m, n)), np.zeros((m, n))]
 
     def template_stack(self, img):
         '''
@@ -184,36 +214,44 @@ class WXST:
         # get the pyramid wrapping images
         ref_pyramid = []
         img_pyramid = []
-        prColor('obtain pyramid image and stack the window with pyramid level: {}'.format(self.pyramid_level), 'green')
+        prColor(
+            'obtain pyramid image and stack the window with pyramid level: {}'.
+            format(self.pyramid_level), 'green')
         ref_pyramid.append(self.ref_data)
         img_pyramid.append(self.img_data)
 
         for kk in range(self.pyramid_level):
             ref_pyramid.append(
                 pywt.dwtn(ref_pyramid[kk], 'db3', mode='zero',
-                        axes=(-2, -1))['aa'])
+                          axes=(-2, -1))['aa'])
             img_pyramid.append(
                 pywt.dwtn(img_pyramid[kk], 'db3', mode='zero',
-                        axes=(-2, -1))['aa'])
+                          axes=(-2, -1))['aa'])
 
         normlize_std = lambda img: (
             (img - np.ndarray.mean(img, axis=0)) / np.ndarray.std(img, axis=0))
 
-        ref_pyramid = [normlize_std(self.template_stack(img_data)) for img_data in ref_pyramid]
-        img_pyramid = [normlize_std(self.template_stack(img_data)) for img_data in img_pyramid]
-        
+        ref_pyramid = [
+            normlize_std(self.template_stack(img_data))
+            for img_data in ref_pyramid
+        ]
+        img_pyramid = [
+            normlize_std(self.template_stack(img_data))
+            for img_data in img_pyramid
+        ]
+
         return ref_pyramid, img_pyramid
 
     def resampling_spline(self, img, s):
-        # img: original 
+        # img: original
         # s: size of the sampling, (row, col)
         m, n = img.shape
         x_axis = np.arange(n)
         y_axis = np.arange(m)
         fit = sfit.RectBivariateSpline(y_axis, x_axis, img)
 
-        x_new = np.linspace(0, n-1, s[1])
-        y_new = np.linspace(0, m-1, s[0])
+        x_new = np.linspace(0, n - 1, s[1])
+        y_new = np.linspace(0, m - 1, s[0])
 
         return fit(y_new, x_new)
 
@@ -226,7 +264,7 @@ class WXST:
             # wavelet_method = 'bior1.3'
             # wavelet wrapping level. 2 is half, 3 is 1/3 of the size
             max_wavelet_level = pywt.dwt_max_level(ref_pyramid[0].shape[0],
-                                                wavelet_method)
+                                                   wavelet_method)
             prColor('max wavelet level: {}'.format(max_wavelet_level), 'green')
             self.wavelet_level = max_wavelet_level
             coefs_level = self.wavelet_level + 1 - self.wavelet_level_cut
@@ -237,7 +275,7 @@ class WXST:
                 self.wavelet_add_list = [0, 0, 1, 2, 2, 2]
             else:
                 self.wavelet_add_list = [2, 2, 2, 2, 2, 2]
-            
+
             # wavelet transform and cut for the pyramid images
             start_time = time.time()
             for p_level in range(len(img_pyramid)):
@@ -246,35 +284,41 @@ class WXST:
                 else:
                     wavelevel_add = self.wavelet_add_list[p_level]
 
-                img_wa, level_name = Wavelet_transform(img_pyramid[p_level],
-                                                        wavelet_method,
-                                                        w_level=self.wavelet_level,
-                                                        return_level=coefs_level+wavelevel_add)
+                img_wa, level_name = Wavelet_transform(
+                    img_pyramid[p_level],
+                    wavelet_method,
+                    w_level=self.wavelet_level,
+                    return_level=coefs_level + wavelevel_add)
                 img_pyramid[p_level] = img_wa
 
-                ref_wa, level_name = Wavelet_transform(ref_pyramid[p_level],
-                                                        wavelet_method,
-                                                        w_level=self.wavelet_level,
-                                                        return_level=coefs_level+wavelevel_add)
+                ref_wa, level_name = Wavelet_transform(
+                    ref_pyramid[p_level],
+                    wavelet_method,
+                    w_level=self.wavelet_level,
+                    return_level=coefs_level + wavelevel_add)
                 ref_pyramid[p_level] = ref_wa
 
                 prColor(
-                    'pyramid level: {}\nvector length: {}\nUse wavelet coef: {}'.format(p_level,
-                        ref_wa.shape[2], level_name), 'green')
+                    'pyramid level: {}\nvector length: {}\nUse wavelet coef: {}'
+                    .format(p_level, ref_wa.shape[2], level_name), 'green')
 
             end_time = time.time()
             print('wavelet time: {}'.format(end_time - start_time))
         else:
-            img_pyramid = [np.moveaxis(img_data, 0, -1) for img_data in img_pyramid]
-            ref_pyramid = [np.moveaxis(img_data, 0, -1) for img_data in ref_pyramid]
+            img_pyramid = [
+                np.moveaxis(img_data, 0, -1) for img_data in img_pyramid
+            ]
+            ref_pyramid = [
+                np.moveaxis(img_data, 0, -1) for img_data in ref_pyramid
+            ]
             self.wavelet_level = None
             self.wavelet_add_list = None
             self.wavelet_level_cut = None
 
         return ref_pyramid, img_pyramid
-    
-    def displace_wavelet(self, y_list, img_wa_stack, ref_wa_stack, displace_pyramid,
-                     cal_half_window, n_pad):
+
+    def displace_wavelet(self, y_list, img_wa_stack, ref_wa_stack,
+                         displace_pyramid, cal_half_window, n_pad):
         '''
             calculate the coefficient of each pixel
         '''
@@ -291,8 +335,11 @@ class WXST:
         for yy in range(dim[0]):
             for xx in range(dim[1]):
                 img_wa_line = img_wa_stack[yy, xx, :]
-                ref_wa_data = ref_wa_stack[n_pad+yy+int(displace_pyramid[0][yy, xx]):n_pad+yy+int(displace_pyramid[0][yy, xx]) + window_size,
-                                        n_pad+xx+int(displace_pyramid[1][yy, xx]):n_pad+xx+int(displace_pyramid[1][yy, xx]) + window_size, :]
+                ref_wa_data = ref_wa_stack[
+                    n_pad + yy + int(displace_pyramid[0][yy, xx]):n_pad + yy +
+                    int(displace_pyramid[0][yy, xx]) + window_size,
+                    n_pad + xx + int(displace_pyramid[1][yy, xx]):n_pad + xx +
+                    int(displace_pyramid[1][yy, xx]) + window_size, :]
 
                 # get the correlation matrix
                 # use different calculation method, maybe faster
@@ -321,9 +368,9 @@ class WXST:
     def solver(self):
 
         ref_pyramid, img_pyramid = self.wavelet_data()
-        transmission = self.img_data/self.ref_data
-        for attr in ('img_data','ref_data'):
-            self.__dict__.pop(attr,None)
+        transmission = self.img_data / self.ref_data
+        for attr in ('img_data', 'ref_data'):
+            self.__dict__.pop(attr, None)
 
         cores = ms.cpu_count()
         prColor('Computer available cores: {}'.format(cores), 'green')
@@ -333,59 +380,87 @@ class WXST:
         else:
             cores = ms.cpu_count()
         prColor('Use {} cores'.format(cores), 'light_purple')
-        prColor('Process group number: {}'.format(self.n_group), 'light_purple')
+        prColor('Process group number: {}'.format(self.n_group),
+                'light_purple')
 
         if cores * self.n_group > self.M_image:
             n_tasks = 4
         else:
             n_tasks = cores * self.n_group
 
-
         start_time = time.time()
         # use pyramid wrapping
-        max_pyramid_searching_window = int(np.ceil(self.cal_half_window / 2**self.pyramid_level))
-        searching_window_pyramid_list = [self.N_s_extend]*self.pyramid_level+[int(max_pyramid_searching_window)]
+        max_pyramid_searching_window = int(
+            np.ceil(self.cal_half_window / 2**self.pyramid_level))
+        searching_window_pyramid_list = [self.N_s_extend
+                                         ] * self.pyramid_level + [
+                                             int(max_pyramid_searching_window)
+                                         ]
 
         displace = self.displace_estimate
-        
+
         for k_iter in range(self.n_iter):
             # iteration to approximating the results
-            displace = [img/2**self.pyramid_level for img in displace]
-            
+            displace = [img / 2**self.pyramid_level for img in displace]
+
             m, n, c = img_pyramid[-1].shape
-            displace[0] = self.resampling_spline(displace[0], (m,n))
-            displace[1] = self.resampling_spline(displace[1], (m,n))
+            displace[0] = self.resampling_spline(displace[0], (m, n))
+            displace[1] = self.resampling_spline(displace[1], (m, n))
 
-            prColor('down sampling the dispalce to size: {}'.format(displace[0].shape), 'green')
+            prColor(
+                'down sampling the dispalce to size: {}'.format(
+                    displace[0].shape), 'green')
 
-            displace = [np.fmax(np.fmin(displace[0], self.cal_half_window/2**self.pyramid_level), -self.cal_half_window/2**self.pyramid_level),
-                         np.fmax(np.fmin(displace[1], self.cal_half_window/2**self.pyramid_level), -self.cal_half_window/2**self.pyramid_level)]
+            displace = [
+                np.fmax(
+                    np.fmin(displace[0],
+                            self.cal_half_window / 2**self.pyramid_level),
+                    -self.cal_half_window / 2**self.pyramid_level),
+                np.fmax(
+                    np.fmin(displace[1],
+                            self.cal_half_window / 2**self.pyramid_level),
+                    -self.cal_half_window / 2**self.pyramid_level)
+            ]
 
             for p_level in range(self.pyramid_level, -1, -1):
                 # first pyramid, searching the window. Then search nearby
                 if p_level == self.pyramid_level:
-                    pyramid_seaching_window = searching_window_pyramid_list[p_level]
+                    pyramid_seaching_window = searching_window_pyramid_list[
+                        p_level]
                     m, n, c = img_pyramid[p_level].shape
                     displace_pyramid = [np.round(img) for img in displace]
-                    
+
                     # n_pad = int(np.ceil(cal_half_window / 2**p_level) * 2**(pyramid_level-p_level))
                     n_pad = int(np.ceil(self.cal_half_window / 2**p_level))
 
                 else:
-                    pyramid_seaching_window = searching_window_pyramid_list[p_level]
+                    pyramid_seaching_window = searching_window_pyramid_list[
+                        p_level]
                     # extend displace_pyramid with upsampling of 2 and also displace value is 2 times larger
                     m, n, c = img_pyramid[p_level].shape
-                    displace_pyramid = [np.round(self.resampling_spline(img*2, (m, n))) for img in displace]
+                    displace_pyramid = [
+                        np.round(self.resampling_spline(img * 2, (m, n)))
+                        for img in displace
+                    ]
 
-                    displace_pyramid = [np.fmax(np.fmin(displace_pyramid[0], self.cal_half_window/2**p_level), -self.cal_half_window/2**p_level),
-                                         np.fmax(np.fmin(displace_pyramid[1], self.cal_half_window/2**p_level), -self.cal_half_window/2**p_level)]
+                    displace_pyramid = [
+                        np.fmax(
+                            np.fmin(displace_pyramid[0],
+                                    self.cal_half_window / 2**p_level),
+                            -self.cal_half_window / 2**p_level),
+                        np.fmax(
+                            np.fmin(displace_pyramid[1],
+                                    self.cal_half_window / 2**p_level),
+                            -self.cal_half_window / 2**p_level)
+                    ]
 
                     # n_pad = int(np.ceil(cal_half_window / 2**p_level) * 2**(pyramid_level-p_level))
-                    n_pad = int(np.ceil(self.cal_half_window / 2**p_level)) 
+                    n_pad = int(np.ceil(self.cal_half_window / 2**p_level))
                 # print(displace_pyramid[0].shape, np.amax(displace_pyramid[0]), np.amin(displace_pyramid[0]))
                 prColor(
-                    'pyramid level: {}\nImage size: {}\nsearching window:{}'.format(
-                        p_level, ref_pyramid[p_level].shape, pyramid_seaching_window), 'cyan')
+                    'pyramid level: {}\nImage size: {}\nsearching window:{}'.
+                    format(p_level, ref_pyramid[p_level].shape,
+                           pyramid_seaching_window), 'cyan')
                 # split the y axis into small groups, all splitted in vertical direction
                 y_axis = np.arange(ref_pyramid[p_level].shape[0])
                 chunks_idx_y = np.array_split(y_axis, n_tasks)
@@ -393,28 +468,37 @@ class WXST:
                 dim = img_pyramid[p_level].shape
 
                 ref_wa_pad = np.pad(ref_pyramid[p_level],
-                                    ((n_pad+pyramid_seaching_window, n_pad+pyramid_seaching_window),
-                                    (n_pad+pyramid_seaching_window, n_pad+pyramid_seaching_window), (0, 0)),
+                                    ((n_pad + pyramid_seaching_window,
+                                      n_pad + pyramid_seaching_window),
+                                     (n_pad + pyramid_seaching_window,
+                                      n_pad + pyramid_seaching_window),
+                                     (0, 0)),
                                     'constant',
                                     constant_values=(0, 0))
-                
+
                 # use CPU parallel to calculate
                 result_list = []
                 '''
                     calculate the pixel displacement for the pyramid images
                 '''
-                with concurrent.futures.ProcessPoolExecutor(max_workers=cores) as executor:
+                with concurrent.futures.ProcessPoolExecutor(
+                        max_workers=cores) as executor:
 
                     futures = []
                     for y_list in chunks_idx_y:
                         # get the stack data
                         img_wa_stack = img_pyramid[p_level][y_list, :, :]
-                        ref_wa_stack = ref_wa_pad[y_list[0]:y_list[-1] +
-                                                2 * (n_pad+pyramid_seaching_window) + 1, :, :]
+                        ref_wa_stack = ref_wa_pad[
+                            y_list[0]:y_list[-1] + 2 *
+                            (n_pad + pyramid_seaching_window) + 1, :, :]
 
                         # start the jobs
                         futures.append(
-                            executor.submit(self.displace_wavelet, y_list, img_wa_stack, ref_wa_stack, (displace_pyramid[0][y_list,:], displace_pyramid[1][y_list,:]), pyramid_seaching_window, n_pad))
+                            executor.submit(self.displace_wavelet, y_list,
+                                            img_wa_stack, ref_wa_stack,
+                                            (displace_pyramid[0][y_list, :],
+                                             displace_pyramid[1][y_list, :]),
+                                            pyramid_seaching_window, n_pad))
 
                     for future in concurrent.futures.as_completed(futures):
 
@@ -424,11 +508,12 @@ class WXST:
                             Total_iter = cores * self.n_group
                             Current_iter = len(result_list)
                             percent_iter = Current_iter / Total_iter * 100
-                            str_bar = '>' * (int(np.ceil(percent_iter / 2))) + ' ' * (int(
-                                (100 - percent_iter) // 2))
+                            str_bar = '>' * (int(np.ceil(
+                                percent_iter / 2))) + ' ' * (int(
+                                    (100 - percent_iter) // 2))
                             prColor(
-                                '\r' + str_bar + 'processing: [%3.1f%%] ' % (percent_iter),
-                                'purple')
+                                '\r' + str_bar + 'processing: [%3.1f%%] ' %
+                                (percent_iter), 'purple')
 
                         except:
                             prColor('Error in the parallel calculation', 'red')
@@ -446,21 +531,29 @@ class WXST:
                     displace_x[y, :] = disp_x
                     displace_y[y, :] = disp_y
 
-                displace = [np.fmax(np.fmin(displace_y, self.cal_half_window/2**p_level), -self.cal_half_window/2**p_level),
-                             np.fmax(np.fmin(displace_x, self.cal_half_window/2**p_level), -self.cal_half_window/2**p_level)]
-                prColor('displace map wrapping: {}'.format(displace[0].shape), 'green')
+                displace = [
+                    np.fmax(
+                        np.fmin(displace_y, self.cal_half_window / 2**p_level),
+                        -self.cal_half_window / 2**p_level),
+                    np.fmax(
+                        np.fmin(displace_x, self.cal_half_window / 2**p_level),
+                        -self.cal_half_window / 2**p_level)
+                ]
+                prColor('displace map wrapping: {}'.format(displace[0].shape),
+                        'green')
                 print('max of displace: {}, min of displace: {}'.format(
-                np.amax(displace[0]), np.amin(displace[1])))
+                    np.amax(displace[0]), np.amin(displace[1])))
 
         end_time = time.time()
-        prColor('\r' + 'Processing time: {:0.3f} s'.format(end_time - start_time),
-                'light_purple')
+        prColor(
+            '\r' + 'Processing time: {:0.3f} s'.format(end_time - start_time),
+            'light_purple')
 
         # remove the padding boundary of the displacement
         displace[0] = -displace[0][self.cal_half_window:-self.cal_half_window,
-                                self.cal_half_window:-self.cal_half_window]
+                                   self.cal_half_window:-self.cal_half_window]
         displace[1] = -displace[1][self.cal_half_window:-self.cal_half_window,
-                                self.cal_half_window:-self.cal_half_window]
+                                   self.cal_half_window:-self.cal_half_window]
         # '''
         #     do the filter to smooth the image
         # '''
@@ -468,19 +561,20 @@ class WXST:
         #     displace[0], abs(2.0 * np.mean(np.diff(displace[0], 1, 0))))
         # displace[1] = filter_erosion(
         #     displace[1], abs(2.0 * np.mean(np.diff(displace[1], 1, 0))))
-        
+
         # print(displace[0].shape)
         DPC_y = (displace[0] - np.mean(displace[0])) * p_x / z
         DPC_x = (displace[1] - np.mean(displace[1])) * p_x / z
 
-        phase = -frankotchellappa(DPC_x, DPC_y) * self.p_x * 2 * np.pi / self.wavelength
+        phase = -frankotchellappa(
+            DPC_x, DPC_y) * self.p_x * 2 * np.pi / self.wavelength
         self.time_cost = end_time - start_time
 
         return displace, [DPC_y, DPC_x], phase, transmission
 
     def run(self, result_path=None):
         self.displace, self.DPC, self.phase, self.transmission = self.solver()
-        
+
         if result_path is not None:
             '''
             save the calculation results
@@ -493,10 +587,17 @@ class WXST:
                     self.pyramid_level) + 'pyramid_level'
 
             kk = 1
-            while os.path.exists(os.path.join(result_path, self.result_filename+'.hdf5')) or os.path.exists(os.path.join(result_path, self.result_filename+'.json')):
-                self.result_filename = 'WXST' + str(self.M_image) + '_px_' + str(
-                self.wavelet_level_cut) + 'wavelet_Cutlevel_' + str(
-                    self.pyramid_level) + 'pyramid_level'+'_{}'.format(kk)
+            while os.path.exists(
+                    os.path.join(
+                        result_path,
+                        self.result_filename + '.hdf5')) or os.path.exists(
+                            os.path.join(result_path,
+                                         self.result_filename + '.json')):
+                self.result_filename = 'WXST' + str(
+                    self.M_image) + '_px_' + str(
+                        self.wavelet_level_cut) + 'wavelet_Cutlevel_' + str(
+                            self.pyramid_level
+                        ) + 'pyramid_level' + '_{}'.format(kk)
                 kk += 1
             write_h5(
                 result_path, self.result_filename, {
@@ -529,7 +630,7 @@ class WXST:
             }
 
             write_json(result_path, self.result_filename, parameter_dict)
-    
+
 
 if __name__ == "__main__":
     if len(sys.argv) == 1:
@@ -545,14 +646,18 @@ if __name__ == "__main__":
 
         Folder_result = os.path.join(Folder_path, 'WXST_test')
         # [image_size, template_window, cal_half_window, n_group, n_cores, energy, pixel_size, distance, use_wavelet, wavelet_ct, pyramid level, n_iteration]
-        parameter_wavelet = [1500, 7, 20, 4, 4, 14e3, 0.65e-6, 310e-3, 0, 2, 2, 1]
+        parameter_wavelet = [
+            1500, 7, 20, 4, 4, 14e3, 0.65e-6, 310e-3, 0, 2, 2, 1
+        ]
 
     elif len(sys.argv) == 4:
         File_img = sys.argv[1]
         File_ref = sys.argv[2]
         Folder_result = sys.argv[3]
         # [image_size, template_window, cal_half_window, n_group, n_cores, energy, pixel_size, distance, wavelet_ct, pyramid level, n_iteration]
-        parameter_wavelet = [1500, 5, 20, 4, 4, 14e3, 0.65e-6, 500e-3, 1, 2, 2, 1]
+        parameter_wavelet = [
+            1500, 5, 20, 4, 4, 14e3, 0.65e-6, 500e-3, 1, 2, 2, 1
+        ]
     elif len(sys.argv) == 16:
         File_img = sys.argv[1]
         File_ref = sys.argv[2]
@@ -601,19 +706,20 @@ if __name__ == "__main__":
     img_data = image_roi(img_data, M_image)
 
     WXST_solver = WXST(img_data,
-                     ref_data,
-                     M_image=M_image,
-                     N_s=N_s,
-                     cal_half_window=cal_half_window,
-                     N_s_extend=N_s_extend,
-                     n_cores=n_cores,
-                     n_group=n_group,
-                     energy=energy,
-                     p_x=p_x,
-                     z=z,
-                     wavelet_level_cut=wavelet_level_cut,
-                     pyramid_level=pyramid_level,
-                     n_iter=n_iter, use_wavelet=use_wavelet, use_estimate=False)
+                       ref_data,
+                       M_image=M_image,
+                       N_s=N_s,
+                       cal_half_window=cal_half_window,
+                       N_s_extend=N_s_extend,
+                       n_cores=n_cores,
+                       n_group=n_group,
+                       energy=energy,
+                       p_x=p_x,
+                       z=z,
+                       wavelet_level_cut=wavelet_level_cut,
+                       pyramid_level=pyramid_level,
+                       n_iter=n_iter,
+                       use_wavelet=use_wavelet)
 
     # # get initial estimation from the cv2 flow tracking
     # displace_estimate = slope_tracking(ref_data,
@@ -672,10 +778,3 @@ if __name__ == "__main__":
 
     plt.close()
 
-    # d_speckle_sample = 0e-3
-    # R_dia = '300e-6 400e-6'
-    # hdf5_file = os.path.join(Folder_result, result_filename + '.hdf5')
-    # json_file = os.path.join(Folder_result, result_filename + '.json')
-
-    # os.system("python data_PostProcess.py " + hdf5_file + ' ' + json_file +
-    #           " {}".format(d_speckle_sample) + " {}".format(R_dia))
