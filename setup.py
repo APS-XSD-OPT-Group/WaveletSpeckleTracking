@@ -44,7 +44,6 @@
 # #########################################################################
 
 import os
-
 try:
     from setuptools import find_packages, setup
 except AttributeError:

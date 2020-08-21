@@ -72,7 +72,6 @@ def load_image(file_path):
         sys.exit()
     return np.array(img)
 
-
 def image_preprocess(image, have_dark, dark_img, have_flat, flat_img):
     '''
         do the flat or dark correction for the images
@@ -557,7 +556,7 @@ class WXST:
 if __name__ == "__main__":
     if len(sys.argv) == 1:
 
-        Folder_path = 'D:/data/Jan2020_speckle/20200202/single_shot/d500mm/sandpaper_ExpTime5s'
+        Folder_path = 'Data_folder_path'
         File_ref = os.path.join(Folder_path, 'ref_001.tif')
         File_img = os.path.join(Folder_path, 'sample_001.tif')
 

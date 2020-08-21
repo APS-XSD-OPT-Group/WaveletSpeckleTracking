@@ -265,7 +265,6 @@ def write_h5(result_path, file_name, data_dict):
                              compression_opts=9)
     prColor('result hdf5 file : {} saved'.format(file_name + '.hdf5'), 'green')
 
-
 def read_h5(file_path, key_name, print_key=False):
     '''
         read the data with the key_name in the h5 file

@@ -47,7 +47,6 @@ import numba as nb
 from numba import prange
 import numpy as np
 
-
 @nb.jit('float64[:,:](float64[:], float64[:,:,:])', nopython=True)
 def dist_numba(v1, arry2):
     c = np.empty(arry2.shape[0:2])

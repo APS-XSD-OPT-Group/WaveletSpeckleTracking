@@ -79,7 +79,6 @@ def load_images(Folder_path, filename_format='*.tif'):
 
     return np.array(img)
 
-
 def image_preprocess(image, have_dark, dark_img, have_flat, flat_img):
     '''
         do the flat or dark correction for the images
@@ -543,9 +542,9 @@ class WSVT:
 if __name__ == "__main__":
     if len(sys.argv) == 1:
 
-        Folder_ref = 'D:/data/Jan2020_speckle/20200202/scan_speckle_exp_d500mm/sandpaper_5um/log_scan_Exp3s/refs/'
-        Folder_img = 'D:/data/Jan2020_speckle/20200202/scan_speckle_exp_d500mm/sandpaper_5um/log_scan_Exp3s/sample_in/'
-        Folder_result = 'D:/data/Jan2020_speckle/20200202/scan_speckle_exp_d500mm/sandpaper_5um/log_scan_Exp3s/WSVT_test/'
+        Folder_ref = 'Folder_for_refs'
+        Folder_img = 'Folder_for_sample'
+        Folder_result = 'Folder_for_result'
 
         parameter_wavelet = [500, 10, 4, 4, 14e3, 0.65e-6, 500e-3, 2, 2, 1]
 
