@@ -275,7 +275,7 @@ class WSVT:
 
                 Corr_img = dist_numba(img_wa_line, ref_wa_data)
 
-                disp_y[yy, xx], disp_x[yy, xx], SN_ratio, max_corr = find_disp(
+                disp_y[yy, xx], disp_x[yy, xx] = find_disp(
                     Corr_img, XX, YY, sub_resolution=True)
 
         disp_add_y = displace_pyramid[0] + disp_y
@@ -313,7 +313,7 @@ class WSVT:
         ]
 
         m, n, c = img_pyramid[0].shape
-        displace = self.displace_estimate
+        displace = [np.zeros((m, n)), np.zeros((m, n))]
 
         for k_iter in range(self.n_iter):
             # iteration to approximating the results
@@ -347,8 +347,7 @@ class WSVT:
                     displace_pyramid = [np.round(img) for img in displace]
 
                     n_pad = int(
-                        np.ceil(self.cal_half_window / 2**p_level) *
-                        2**(p_level))
+                        np.ceil(self.cal_half_window / 2**p_level))
 
                 else:
                     pyramid_seaching_window = searching_window_pyramid_list[
@@ -372,8 +371,7 @@ class WSVT:
                     ]
 
                     n_pad = int(
-                        np.ceil(self.cal_half_window / 2**p_level) *
-                        2**p_level)
+                        np.ceil(self.cal_half_window / 2**p_level))
 
                 prColor(
                     'pyramid level: {}\nImage size: {}\nsearching window:{}'.
@@ -549,7 +547,7 @@ if __name__ == "__main__":
         Folder_img = 'D:/data/Jan2020_speckle/20200202/scan_speckle_exp_d500mm/sandpaper_5um/log_scan_Exp3s/sample_in/'
         Folder_result = 'D:/data/Jan2020_speckle/20200202/scan_speckle_exp_d500mm/sandpaper_5um/log_scan_Exp3s/WSVT_test/'
 
-        parameter_wavelet = [1500, 20, 4, 4, 14e3, 0.65e-6, 500e-3, 1, 2, 1]
+        parameter_wavelet = [500, 10, 4, 4, 14e3, 0.65e-6, 500e-3, 2, 2, 1]
 
     elif len(sys.argv) == 4:
         Folder_img = sys.argv[1]

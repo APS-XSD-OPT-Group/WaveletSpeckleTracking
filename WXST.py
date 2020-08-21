@@ -62,7 +62,6 @@ import multiprocessing as ms
 import concurrent.futures
 import scipy.interpolate as sfit
 import copy
-import cv2
 
 
 def load_image(file_path):
@@ -144,9 +143,6 @@ class WXST:
         self.n_iter = n_iter
         # if use wavelet transform or not
         self.use_wavelet = use_wavelet
-
-        m, n = self.img_data.shape
-        self.displace_estimate = [np.zeros((m, n)), np.zeros((m, n))]
 
     def template_stack(self, img):
         '''
@@ -297,7 +293,7 @@ class WXST:
                 '''
                     use gradient to find the peak
                 '''
-                disp_y[yy, xx], disp_x[yy, xx], SN_ratio, max_corr = find_disp(
+                disp_y[yy, xx], disp_x[yy, xx] = find_disp(
                     Corr_img, XX, YY, sub_resolution=True)
 
         disp_add_y = displace_pyramid[0] + disp_y
@@ -335,8 +331,8 @@ class WXST:
                                          ] * self.pyramid_level + [
                                              int(max_pyramid_searching_window)
                                          ]
-
-        displace = self.displace_estimate
+        m, n, c = img_pyramid[0].shape
+        displace = [np.zeros((m, n)), np.zeros((m, n))]
 
         for k_iter in range(self.n_iter):
             # iteration to approximating the results
@@ -568,7 +564,7 @@ if __name__ == "__main__":
         Folder_result = os.path.join(Folder_path, 'WXST_test')
         # [image_size, template_window, cal_half_window, n_group, n_cores, energy, pixel_size, distance, use_wavelet, wavelet_ct, pyramid level, n_iteration]
         parameter_wavelet = [
-            1500, 7, 20, 4, 4, 14e3, 0.65e-6, 310e-3, 0, 2, 2, 1
+            500, 5, 10, 4, 4, 14e3, 0.65e-6, 310e-3, 1, 2, 2, 1
         ]
 
     elif len(sys.argv) == 4:
