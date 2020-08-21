@@ -50,18 +50,18 @@ try:
 except AttributeError:
     from setuptools import find_packages, setup
 
-NAME = 'WSVT'
+NAME = 'WaveletSpeckleTracking'
 
-VERSION = '0.0.1'
+VERSION = '0.1.0'
 ISRELEASED = False
 
-DESCRIPTION = 'WSVT code'
+DESCRIPTION = 'WaveletSpeckleTracking'
 README_FILE = os.path.join(os.path.dirname(__file__), 'README.md')
 LONG_DESCRIPTION = open(README_FILE).read()
 AUTHOR = 'Zhi Qiao, Xianbo Shi'
 AUTHOR_EMAIL = 'zqiao@anl.gov'
-URL = 'https://github.com/APS-XSD-OPT-Group/WSVT'
-DOWNLOAD_URL = 'https://github.com/APS-XSD-OPT-Group/WSVT'
+URL = 'https://github.com/APS-XSD-OPT-Group/WaveletSpeckleTracking'
+DOWNLOAD_URL = 'https://github.com/APS-XSD-OPT-Group/WaveletSpeckleTracking'
 MAINTAINER = 'XSD-OPT Group @ APS-ANL'
 MAINTAINER_EMAIL = 'zqiao@anl.gov'
 LICENSE = 'BSD-3'
